@@ -38,7 +38,7 @@ class HTMLGraphElement extends HTMLCanvasElement {
   static get ORIGIN_TOP () { return 0x0004; }
   static get ORIGIN_BOTTOM () { return 0x0008; }
   static get ORIGIN_CENTER () { return 0x0010; }
-  static get observedAttributes () {}
+  static get observedAttributes () { return []; }
 
   get autoClear () { return this.#autoClear; }
   get autoRender () { return this.#autoRender; }
@@ -170,7 +170,7 @@ class HTMLGraphElement extends HTMLCanvasElement {
     gl.viewport(0, 0, width, height);
   }
 
-  render (indexes = null) {
+  render (indices = []) {
     if (this.#autoClear) this.clear();
 
     const gl = this.#gl;
@@ -185,22 +185,17 @@ class HTMLGraphElement extends HTMLCanvasElement {
     const rangeX = this.#rangeX;
     const rangeY = this.#rangeY;
 
-    if (indexes === null) indexes = [...elements.keys()];
+    if (indices.length === 0) indices = [...elements.keys()];
 
     const mapping = (value, index) => index % 2 === 0 ?
-        (value * (originX === 0 ? 1 : 2) - minX) / rangeX + originX :
-        (value * (originY === 0 ? 1 : 2) - minY) / rangeY + originY;
-    const filtering = (value, index, array) => {
-      value = Math.abs(array[index - index % 2]);
-      return 0 <= value && value <= 1;
-    };
+      (value * (originX === 0 ? 1 : 2) - minX) / rangeX + originX :
+      (value * (originY === 0 ? 1 : 2) - minY) / rangeY + originY;
+    const filtering = (value, index, array) => Math.abs(array[index - index % 2]).limit(0, 1);
 
-    elements.filter((e, index) => indexes.length === 0 || indexes.includes(index))
-        .map(({color, data}) => ({
-          color,
-          data: data.map(mapping).filter(filtering)
-        }))
-        .forEach(({color, data}) => this.#draw(gl, data, color));
+    elements.filter((e, index) => indices.includes(index)).map(({color, data}) => ({
+      color,
+      data: data.map(mapping).filter(filtering)
+    })).forEach(({color, data}) => this.#draw(gl, data, color));
 
     this.#draw(gl, [originX, -1, originX, 1], [0, 0, 0, 1]);
     this.#draw(gl, [-1, originY, 1, originY], [0, 0, 0, 1]);
